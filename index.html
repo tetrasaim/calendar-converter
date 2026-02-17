@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת זמן טטראיסטית - לוח שנה ומחסן</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Assistant', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .calendar-day:hover { background-color: #f1f5f9; color: #4f46e5; font-weight: bold; }
+        .calendar-day.selected { background-color: #4f46e5; color: white; font-weight: bold; }
+        .calendar-day.today { border: 2px solid #4f46e5; color: #4f46e5; font-weight: bold; }
+        .calendar-day.other-month { opacity: 0.2; }
+
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        #nameModal {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100; align-items: center; justify-content: center;
+        }
+
+        .storage-item {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        #downloadAppBtn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 50;
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #4f46e5;
+        }
+        #downloadAppBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            background: #f8fafc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- צד ימין: לוח שנה וממיר -->
+        <div class="space-y-4">
+            <div class="glass-panel rounded-[2rem] p-6 border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-full">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                    <h2 id="calendarTitle" class="text-lg font-black text-slate-800">ינואר 2024</h2>
+                    <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-full">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                </div>
+                
+                <div class="calendar-grid mb-2 text-center text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                    <div>א</div><div>ב</div><div>ג</div><div>ד</div><div>ה</div><div>ו</div><div>ש</div>
+                </div>
+                <div id="calendarDays" class="calendar-grid"></div>
+
+                <!-- בחירת תאריך מהירה -->
+                <div class="mt-4">
+                    <label class="text-[10px] text-slate-400 font-bold mb-1 block uppercase">בחירה מהירה:</label>
+                    <input type="date" id="datePicker" onchange="handlePickerChange(this.value)" class="w-full p-3 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-lg font-bold transition-all outline-none text-slate-700">
+                </div>
+                
+                <div class="mt-6 pt-6 border-t border-slate-100 space-y-4">
+                    <div class="bg-slate-900 rounded-2xl p-4 text-center">
+                        <div id="selectedDateLabel" class="text-[10px] text-slate-400 uppercase mb-1">תאריך נבחר (טטראיסטי)</div>
+                        <div id="tetraResultDisplay" class="text-xl font-black text-indigo-400">בחר תאריך</div>
+                    </div>
+                    <button id="saveBtn" onclick="openSaveModal()" disabled
+                            class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition disabled:opacity-30">
+                        📥 שמור במחסן עם שם
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- צד שמאל: מחסן תאריכים -->
+        <div class="space-y-4 flex flex-col h-full">
+            <div class="glass-panel rounded-[2rem] p-6 border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-black text-slate-800">מחסן תאריכים</h3>
+                    <button onclick="clearStorage()" class="text-xs text-red-500 hover:underline">מחק הכל</button>
+                </div>
+                <div id="storageList" class="space-y-3 overflow-y-auto flex-1 pr-2">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal לשאילת שם -->
+    <div id="nameModal">
+        <div class="bg-white rounded-[2rem] p-8 w-80 shadow-2xl space-y-4 text-center mx-4">
+            <div class="space-y-2">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">מתן שם לתאריך</h3>
+                <p class="text-slate-500 text-xs">איך תרצה לתייג את התאריך השמור?</p>
+            </div>
+            <input id="saveNameInput" type="text" placeholder="למשל: יום הולדת שלי" 
+                   class="w-full p-4 bg-slate-100 border-none rounded-2xl outline-none text-center font-bold text-slate-700 focus:ring-2 ring-indigo-500 transition">
+            <div class="flex flex-col gap-2 pt-2">
+                <button onclick="confirmSave()" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">שמור</button>
+                <button onclick="confirmSave(true)" class="w-full py-3 bg-slate-100 text-slate-500 rounded-xl font-bold hover:bg-slate-200 transition">שמור ללא שם</button>
+                <button onclick="closeModal()" class="w-full py-2 text-slate-400 text-xs hover:underline mt-2">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm font-bold opacity-0 transition-opacity pointer-events-none z-[200]">
+        הועתק!
+    </div>
+
+    <script>
+        const CONFIG = {
+            epoch: { gY: 0, gM: 1, gD: 1, tY: 10000, tM: 1, tD: 1 },
+            tetraMonths: ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שביעי", "שמיני", "תשיעי", "עשירי", "אחד-עשר", "שנים-עשר"],
+            gregMonths: ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"]
+        };
+
+        let currentViewDate = new Date();
+        let selectedDate = null;
+        let selectedTetraStr = "";
+        let savedDates = JSON.parse(localStorage.getItem('saved_tetra_dates_v3') || '[]');
+
+        function downloadThisFile() {
+            const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'tetra_calendar.html';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        function isLeapYear(y) {
+            const gY = y - 10000;
+            return (gY % 4 === 0 && gY % 100 !== 0) || (gY % 400 === 0);
+        }
+
+        function getAbsoluteDays(d, m, y) {
+            let year = y, month = m;
+            if (month <= 2) { year--; month += 12; }
+            return Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + d - 1524.5;
+        }
+
+        function convertToTetra(date) {
+            const targetAbs = getAbsoluteDays(date.getDate(), date.getMonth() + 1, date.getFullYear());
+            const syncAbs = getAbsoluteDays(CONFIG.epoch.gD, CONFIG.epoch.gM, CONFIG.epoch.gY);
+            let diff = (targetAbs - syncAbs) + ((CONFIG.epoch.tM - 1) * 30) + (CONFIG.epoch.tD - 1);
+            let y = CONFIG.epoch.tY;
+            if (diff >= 0) {
+                while (true) {
+                    const days = isLeapYear(y) ? 366 : 365;
+                    if (diff >= days) { diff -= days; y++; } else break;
+                }
+            } else {
+                while (diff < 0) { y--; diff += (isLeapYear(y) ? 366 : 365); }
+            }
+            if (diff < 360) {
+                const mIdx = Math.floor(diff / 30);
+                const d = (diff % 30) + 1;
+                return `${d} ב${CONFIG.tetraMonths[mIdx]}, ${y}`;
+            }
+            const extraIdx = diff - 360;
+            const extraNames = ["אלפא", "בטא", "גמא", "דלתא", "אפסילון", "טלאד"];
+            return `יום ${extraNames[extraIdx] || 'אחרית'}, ${y}`;
+        }
+
+        function renderCalendar() {
+            const daysContainer = document.getElementById('calendarDays');
+            const title = document.getElementById('calendarTitle');
+            daysContainer.innerHTML = '';
+
+            const year = currentViewDate.getFullYear();
+            const month = currentViewDate.getMonth();
+            title.innerText = `${CONFIG.gregMonths[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const prevMonthDays = new Date(year, month, 0).getDate();
+
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day other-month';
+                dayDiv.innerText = prevMonthDays - i;
+                daysContainer.appendChild(dayDiv);
+            }
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDiv = document.createElement('div');
+                const isToday = new Date().toDateString() === new Date(year, month, i).toDateString();
+                const isSelected = selectedDate && selectedDate.toDateString() === new Date(year, month, i).toDateString();
+                
+                dayDiv.className = `calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`;
+                dayDiv.innerText = i;
+                dayDiv.onclick = () => selectDate(year, month, i);
+                daysContainer.appendChild(dayDiv);
+            }
+        }
+
+        function changeMonth(delta) {
+            currentViewDate.setMonth(currentViewDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        // בחירה מה-picker מעדכנת את שאר המערכת
+        function handlePickerChange(val) {
+            if (!val) return;
+            const [y, m, d] = val.split('-').map(Number);
+            selectDate(y, m - 1, d);
+        }
+
+        function selectDate(y, m, d) {
+            selectedDate = new Date(y, m, d);
+            currentViewDate = new Date(y, m, 1); // הזזת התצוגה לחודש שנבחר
+            selectedTetraStr = convertToTetra(selectedDate);
+            
+            // עדכון רכיבי UI
+            document.getElementById('tetraResultDisplay').innerText = selectedTetraStr;
+            document.getElementById('saveBtn').disabled = false;
+            
+            // סנכרון ה-Picker
+            const formattedDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            document.getElementById('datePicker').value = formattedDate;
+            
+            renderCalendar();
+        }
+
+        function openSaveModal() {
+            document.getElementById('nameModal').style.display = 'flex';
+            document.getElementById('saveNameInput').value = '';
+            document.getElementById('saveNameInput').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('nameModal').style.display = 'none';
+        }
+
+        function confirmSave(noName = false) {
+            if (!selectedDate) return;
+
+            const inputName = document.getElementById('saveNameInput').value.trim();
+            const dateName = noName ? "" : inputName;
+            
+            const entry = {
+                id: Date.now(),
+                name: dateName,
+                gregorian: `${selectedDate.getDate()}/${selectedDate.getMonth()+1}/${selectedDate.getFullYear()}`,
+                tetra: selectedTetraStr
+            };
+
+            savedDates.unshift(entry);
+            localStorage.setItem('saved_tetra_dates_v3', JSON.stringify(savedDates));
+            renderStorage();
+            closeModal();
+            showToast("התאריך נשמר במחסן");
+        }
+
+        function renderStorage() {
+            const list = document.getElementById('storageList');
+            list.innerHTML = '';
+
+            if (savedDates.length === 0) {
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-12 opacity-20">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-8 8-8-8"></path></svg>
+                        <span class="mt-2 font-bold">המחסן ריק</span>
+                    </div>
+                `;
+                return;
+            }
+
+            savedDates.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'storage-item p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-center group hover:border-indigo-200 transition';
+                div.innerHTML = `
+                    <div class="flex flex-col">
+                        ${item.name ? `<span class="text-[10px] font-black text-indigo-600 uppercase tracking-tight">${item.name}</span>` : ''}
+                        <span class="text-xs text-slate-400">${item.gregorian}</span>
+                        <span class="font-bold text-slate-800">${item.tetra}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="copyToClipboard('${item.tetra}')" class="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-600 transition">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        </button>
+                        <button onclick="deleteItem(${item.id})" class="p-2 bg-white rounded-lg border border-slate-200 text-slate-300 hover:text-red-500 hover:border-red-500 transition">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function deleteItem(id) {
+            savedDates = savedDates.filter(d => d.id !== id);
+            localStorage.setItem('saved_tetra_dates_v3', JSON.stringify(savedDates));
+            renderStorage();
+        }
+
+        function clearStorage() {
+            if (confirm("האם למחוק את כל התאריכים מהמחסן?")) {
+                savedDates = [];
+                localStorage.removeItem('saved_tetra_dates_v3');
+                renderStorage();
+            }
+        }
+
+        function copyToClipboard(text) {
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("הועתק ללוח!");
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 2000);
+        }
+
+        window.onload = () => {
+            renderCalendar();
+            renderStorage();
+            // הגדרת תאריך היום ב-picker כברירת מחדל
+            const today = new Date();
+            const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            document.getElementById('datePicker').value = formattedToday;
+        };
+    </script>
+</body>
+</html>
