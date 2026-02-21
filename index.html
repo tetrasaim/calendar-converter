@@ -120,8 +120,78 @@
             </div>
         </div>
 
-        <!-- צד שמאל: מחסן תאריכים -->
+        <!-- צד שמאל: ממיר שעה + מחסן תאריכים -->
         <div class="space-y-4 flex flex-col h-full">
+
+            <!-- ממיר שעה -->
+            <div class="glass-panel rounded-[2rem] p-6 border border-slate-200">
+                <h3 class="text-lg font-black text-slate-800 mb-1">🕐 ממיר שעות</h3>
+                <p class="text-[10px] text-slate-400 uppercase font-bold mb-4">מערכת טטראיסטית: 10 שעות · 100 דקות · 100 שניות</p>
+
+                <!-- כרטיסיות -->
+                <div class="flex bg-slate-100 rounded-2xl p-1 mb-4">
+                    <button onclick="setTimeTab('toTetra')" id="tabToTetra" class="flex-1 py-2 rounded-xl text-sm font-bold transition-all bg-white text-indigo-600 shadow-sm">רגיל → טטרה</button>
+                    <button onclick="setTimeTab('toGreg')" id="tabToGreg" class="flex-1 py-2 rounded-xl text-sm font-bold transition-all text-slate-400">טטרה → רגיל</button>
+                </div>
+
+                <!-- טופס: רגיל לטטרה -->
+                <div id="formToTetra">
+                    <div class="flex gap-2 items-center mb-3">
+                        <div class="flex-1">
+                            <label class="text-[10px] text-slate-400 font-bold block mb-1">שעה (0-23)</label>
+                            <input id="gregHour" type="number" min="0" max="23" placeholder="שש" oninput="convertGregToTetra()"
+                                class="w-full p-3 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-lg font-bold text-center outline-none transition-all">
+                        </div>
+                        <span class="text-slate-300 font-bold mt-5">:</span>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-slate-400 font-bold block mb-1">דקות (0-59)</label>
+                            <input id="gregMin" type="number" min="0" max="59" placeholder="00" oninput="convertGregToTetra()"
+                                class="w-full p-3 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-lg font-bold text-center outline-none transition-all">
+                        </div>
+                        <span class="text-slate-300 font-bold mt-5">:</span>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-slate-400 font-bold block mb-1">שניות (0-59)</label>
+                            <input id="gregSec" type="number" min="0" max="59" placeholder="00" oninput="convertGregToTetra()"
+                                class="w-full p-3 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-lg font-bold text-center outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- טופס: טטרה לרגיל -->
+                <div id="formToGreg" class="hidden">
+                    <div class="flex gap-2 items-center mb-3">
+                        <div class="flex-1">
+                            <label class="text-[10px] text-slate-400 font-bold block mb-1">שעה (0-9)</label>
+                            <input id="tetraHour" type="number" min="0" max="9" placeholder="00" oninput="convertTetraToGreg()"
+                                class="w-full p-3 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-lg font-bold text-center outline-none transition-all">
+                        </div>
+                        <span class="text-slate-300 font-bold mt-5">:</span>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-slate-400 font-bold block mb-1">דקות (0-99)</label>
+                            <input id="tetraMin" type="number" min="0" max="99" placeholder="00" oninput="convertTetraToGreg()"
+                                class="w-full p-3 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-lg font-bold text-center outline-none transition-all">
+                        </div>
+                        <span class="text-slate-300 font-bold mt-5">:</span>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-slate-400 font-bold block mb-1">שניות (0-99)</label>
+                            <input id="tetraSec" type="number" min="0" max="99" placeholder="00" oninput="convertTetraToGreg()"
+                                class="w-full p-3 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-lg font-bold text-center outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- תוצאה -->
+                <div class="bg-slate-900 rounded-2xl p-4 text-center">
+                    <div id="timeResultLabel" class="text-[10px] text-slate-400 uppercase mb-1">שעה טטראיסטית</div>
+                    <div id="timeResult" class="text-xl font-black text-indigo-400">הכנס שעה</div>
+                </div>
+
+                <!-- שעה עכשיו -->
+                <button onclick="useCurrentTime()" class="mt-3 w-full py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition">
+                    ⏱ השתמש בשעה הנוכחית
+                </button>
+            </div>
+
             <div class="glass-panel rounded-[2rem] p-6 border border-slate-200 flex-1 flex flex-col overflow-hidden">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-black text-slate-800">מחסן תאריכים</h3>
@@ -372,6 +442,88 @@
             toast.innerText = msg;
             toast.style.opacity = '1';
             setTimeout(() => toast.style.opacity = '0', 2000);
+        }
+
+        // ===== ממיר שעות =====
+        // יום גרגוריאני = 86400 שניות
+        // יום טטראיסטי = 10 * 100 * 100 = 100,000 שניות טטרה
+        // 1 שנייה רגילה = 100000/86400 שניות טטרה
+
+        let currentTimeTab = 'toTetra';
+
+        function setTimeTab(tab) {
+            currentTimeTab = tab;
+            document.getElementById('formToTetra').classList.toggle('hidden', tab !== 'toTetra');
+            document.getElementById('formToGreg').classList.toggle('hidden', tab !== 'toGreg');
+            document.getElementById('tabToTetra').className = `flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'toTetra' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`;
+            document.getElementById('tabToGreg').className = `flex-1 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'toGreg' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`;
+            document.getElementById('timeResult').innerText = 'הכנס שעה';
+            document.getElementById('timeResultLabel').innerText = tab === 'toTetra' ? 'שעה טטראיסטית' : 'שעה רגילה';
+        }
+
+        function gregToTetra(h, m, s) {
+            // כמות שניות גרגוריאניות מתחילת היום
+            const totalGregSec = h * 3600 + m * 60 + s;
+            // המרה לשניות טטרה: יחס 100000/86400
+            const totalTetraSec = Math.round(totalGregSec * 100000 / 86400);
+            const tH = Math.floor(totalTetraSec / 10000);
+            const tM = Math.floor((totalTetraSec % 10000) / 100);
+            const tS = totalTetraSec % 100;
+            return { h: tH, m: tM, s: tS };
+        }
+
+        function tetraToGreg(h, m, s) {
+            // כמות שניות טטרה מתחילת היום
+            const totalTetraSec = h * 10000 + m * 100 + s;
+            // המרה לשניות גרגוריאניות
+            const totalGregSec = Math.round(totalTetraSec * 86400 / 100000);
+            const gH = Math.floor(totalGregSec / 3600);
+            const gM = Math.floor((totalGregSec % 3600) / 60);
+            const gS = totalGregSec % 60;
+            return { h: gH, m: gM, s: gS };
+        }
+
+        function pad(n, len = 2) { return String(n).padStart(len, '0'); }
+
+        function convertGregToTetra() {
+            const h = parseInt(document.getElementById('gregHour').value);
+            const m = parseInt(document.getElementById('gregMin').value);
+            const s = parseInt(document.getElementById('gregSec').value);
+            if (isNaN(h) && isNaN(m) && isNaN(s)) {
+                document.getElementById('timeResult').innerText = 'הכנס שעה';
+                return;
+            }
+            const fH = isNaN(h) ? 0 : Math.min(h, 23);
+            const fM = isNaN(m) ? 0 : Math.min(m, 59);
+            const fS = isNaN(s) ? 0 : Math.min(s, 59);
+            const t = gregToTetra(fH, fM, fS);
+            document.getElementById('timeResult').innerText = `${t.h}:${pad(t.m)}:${pad(t.s)}`;
+            document.getElementById('timeResultLabel').innerText = 'שעה טטראיסטית';
+        }
+
+        function convertTetraToGreg() {
+            const h = parseInt(document.getElementById('tetraHour').value);
+            const m = parseInt(document.getElementById('tetraMin').value);
+            const s = parseInt(document.getElementById('tetraSec').value);
+            if (isNaN(h) && isNaN(m) && isNaN(s)) {
+                document.getElementById('timeResult').innerText = 'הכנס שעה';
+                return;
+            }
+            const fH = isNaN(h) ? 0 : Math.min(h, 9);
+            const fM = isNaN(m) ? 0 : Math.min(m, 99);
+            const fS = isNaN(s) ? 0 : Math.min(s, 99);
+            const g = tetraToGreg(fH, fM, fS);
+            document.getElementById('timeResult').innerText = `${pad(g.h)}:${pad(g.m)}:${pad(g.s)}`;
+            document.getElementById('timeResultLabel').innerText = 'שעה רגילה (גרגוריאנית)';
+        }
+
+        function useCurrentTime() {
+            const now = new Date();
+            setTimeTab('toTetra');
+            document.getElementById('gregHour').value = now.getHours();
+            document.getElementById('gregMin').value = now.getMinutes();
+            document.getElementById('gregSec').value = now.getSeconds();
+            convertGregToTetra();
         }
 
         window.onload = () => {
